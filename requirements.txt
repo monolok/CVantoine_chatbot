@@ -1,3 +1,5 @@
 pypdf
 faiss-cpu
 mistralai
+streamlit
+numpy
