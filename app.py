@@ -1,15 +1,17 @@
 import os
 import streamlit as st
 import time
+import numpy as np
+import json
+from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
-import numpy as np
-from faiss import IndexFlatL2
-import json
+from faiss import IndexFlatL2, read_index
 
 @st.cache_resource
 def get_client():
     """Returns a cached instance of the MistralClient."""
+    load_dotenv()
     api_key = os.environ["MISTRAL_API_KEY"]
     return MistralClient(api_key=api_key)
 
@@ -60,11 +62,14 @@ def stream_str(s, speed=250):
 # Function to stream the response from the AI
 def stream_response(response):
     """Yields responses from the AI, replacing placeholders as needed."""
-    for r in response:
-        content = r.choices[0].delta.content
-        # prevent $ from rendering as LaTeX
-        content = content.replace("$", "\$")
-        yield content
+    try:
+        for r in response:
+            content = r.choices[0].delta.content
+            # prevent $ from rendering as LaTeX
+            content = content.replace("$", "\$")
+            yield content
+    except Exception as e:
+        yield f"Error: {e}"
 
 # Decorator to cache the embedding computation
 @st.cache_data
@@ -76,9 +81,7 @@ def embed(text: str):
 @st.cache_resource
 def load_and_cache_index():
     """Loads and caches the faiss index and chunks from JSON file."""
-    # Load the saved FAISS index
-    index = faiss.read_index("data/vector_cv.index")
-    # Load the text chunks from JSON file
+    index = read_index("data/vector_cv.index")
     with open("data/cv_chunks.json", "r", encoding="utf-8") as f:
         chunk_dict = json.load(f)
     return index, chunk_dict
@@ -90,7 +93,7 @@ def reply(query: str, index: IndexFlatL2, chunks):
     embedding = np.array([embedding])
 
     _, indexes = index.search(embedding, k=2)
-    context = [chunks[i] for i in indexes.tolist()[0]]
+    context = [chunks[f"{i}"] for i in indexes.tolist()[0]]
 
     messages = [
         ChatMessage(role="user", content=PROMPT.format(context=context, query=query))
