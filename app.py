@@ -89,31 +89,46 @@ def load_and_cache_index():
 # Function to reply to queries using the built index
 def reply(query: str, index: IndexFlatL2, chunks):
     """Generates a reply to the user's query based on the indexed PDF content."""
-    embedding = embed(query)
-    embedding = np.array([embedding])
+    try:
+        embedding = embed(query)
+        embedding = np.array([embedding])
 
-    _, indexes = index.search(embedding, k=2)
-    context = [chunks[f"{i}"] for i in indexes.tolist()[0]]
+        _, indexes = index.search(embedding, k=2)
+        context = [chunks[f"{i}"] for i in indexes.tolist()[0]]
 
-    messages = [
-        ChatMessage(role="user", content=PROMPT.format(context=context, query=query))
-    ]
-    response = CLIENT.chat_stream(model="mistral-medium", messages=messages)
-    add_message(stream_response(response))
+        messages = [
+            ChatMessage(role="user", content=PROMPT.format(context=context, query=query))
+        ]
+        response = CLIENT.chat_stream(model="mistral-medium", messages=messages)
+
+        # Wait for a short time to ensure the response is ready
+        # Display a loading indicator while processing
+        with st.spinner("processing your query..."):
+            time.sleep(2)
+        add_message(stream_response(response))
+
+    except Exception as e:
+        st.error(f"Error during query processing: {e}")
+        print(f"Debug: {e}")
 
 # Main application logic
 def main():
     """Main function to run the application logic."""
     if st.sidebar.button("🔴 Reset conversation"):
         st.session_state.messages = []
-
-    index, chunks = load_and_cache_index()
+    
+    try:
+        index, chunks = load_and_cache_index()
+    except Exception as e:
+        st.error(f"Error loading index: {e}")
+        print(f"Debug: {e}")
+        return
 
     for message in st.session_state.messages:
         with st.chat_message(message["agent"]):
             st.write(message["content"])
 
-    query = st.chat_input("Ask something about your PDF")
+    query = st.chat_input("Chat with Antoine Bertin's resume")
 
     if not st.session_state.messages:
         add_message("Ask me anything!")
