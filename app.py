@@ -3,7 +3,7 @@ import streamlit as st
 import time
 import numpy as np
 import json
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from faiss import IndexFlatL2, read_index
@@ -11,7 +11,7 @@ from faiss import IndexFlatL2, read_index
 @st.cache_resource
 def get_client():
     """Returns a cached instance of the MistralClient."""
-    load_dotenv()
+    #load_dotenv()
     api_key = os.environ["MISTRAL_API_KEY"]
     return MistralClient(api_key=api_key)
 
