@@ -41,7 +41,9 @@ An excerpt from a document is given below.
 
 Given the document excerpt, answer the following query in the same language as the query.
 Do not output anything that can't be answered from the context.
-If the context does not provide enough information suggest booking a video call with Antoine Bertin at "https://calendly.com/antoinebertin/30".
+If the context does not provide enough information suggest the following:
+- Schedule a video call with Antoine Bertin for more detailed information. You can do this by visiting his Calendly link: 'https://calendly.com/antoinebertin/30'.
+- Learn more about Antoine's story, you can download the 'antoine' package. To do this, use the command 'pip install antoine' in your terminal and run the 'hire_antoine' command.
 Query: {query}
 Answer:
 """
