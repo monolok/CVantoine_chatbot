@@ -17,6 +17,21 @@ def get_client():
 
 CLIENT: MistralClient = get_client()
 
+# PROMPT = """
+# An excerpt from a document is given below.
+
+# ---------------------
+# {context}
+# ---------------------
+
+# Given the document excerpt, answer the following query.
+# If the context does not provide enough information, decline to answer.
+# Do not output anything that can't be answered from the context.
+
+# Query: {query}
+# Answer:
+# """
+
 PROMPT = """
 An excerpt from a document is given below.
 
@@ -24,10 +39,9 @@ An excerpt from a document is given below.
 {context}
 ---------------------
 
-Given the document excerpt, answer the following query.
-If the context does not provide enough information, decline to answer.
+Given the document excerpt, answer the following query in the same language as the query.
 Do not output anything that can't be answered from the context.
-
+If the context does not provide enough information suggest booking a video call with Antoine Bertin at "https://calendly.com/antoinebertin/30".
 Query: {query}
 Answer:
 """
@@ -131,7 +145,7 @@ def main():
     query = st.chat_input("Chat with Antoine Bertin's resume")
 
     if not st.session_state.messages:
-        add_message("Ask me anything!")
+        add_message("Hi! Want to learn more about Antoine's career and skills? Let's get started!")
 
     if query:
         add_message(query, agent="human", stream=False, store=True)
