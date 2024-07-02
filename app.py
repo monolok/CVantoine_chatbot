@@ -17,21 +17,6 @@ def get_client():
 
 CLIENT: MistralClient = get_client()
 
-# PROMPT = """
-# An excerpt from a document is given below.
-
-# ---------------------
-# {context}
-# ---------------------
-
-# Given the document excerpt, answer the following query.
-# If the context does not provide enough information, decline to answer.
-# Do not output anything that can't be answered from the context.
-
-# Query: {query}
-# Answer:
-# """
-
 PROMPT = """
 An excerpt from a document is given below.
 
