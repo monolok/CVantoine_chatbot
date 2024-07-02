@@ -1,3 +1,4 @@
 .env
 query_test.ipynb
 vectorizer.ipynb
+vectorize_and_querry_free.ipynb
