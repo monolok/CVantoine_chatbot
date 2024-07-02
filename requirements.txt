@@ -1,5 +1,15 @@
 pypdf
 faiss-cpu
-mistralai
 streamlit
 numpy
+python-dotenv
+langchain
+langchain-community
+sentence-transformers
+#mistralai
+#bitsandbytes
+#accelerate
+#faiss-gpu
+#torch
+#transformers
+#openpyxl
