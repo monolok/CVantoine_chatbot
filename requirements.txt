@@ -6,6 +6,7 @@ python-dotenv
 langchain
 langchain-community
 sentence-transformers
+langchain-huggingface
 #mistralai
 #bitsandbytes
 #accelerate

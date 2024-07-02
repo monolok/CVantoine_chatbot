@@ -1,6 +1,7 @@
 import streamlit as st
 import time
-from langchain_community.embeddings import HuggingFaceEmbeddings
+#from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from transformers import AutoTokenizer
 from typing import List, Tuple
@@ -18,7 +19,7 @@ prompt_in_chat_format = [
         Do not respond anything that can't be answered from the context. 
         If the answer cannot be deduced from the context suggest the following:
 - Schedule a video call with Antoine Bertin for more detailed information. You can do this by visiting his Calendly link: 'https://calendly.com/antoinebertin/30'.
-- Learn more about Antoine's story, you can download the 'antoine' package. To do this, use the command 'pip install antoine' in your terminal and run the 'hire_antoine' command.""",
+- Learn more about Antoine's story, you can download the 'antoine' package. To do this, use the command 'pip install antoine' in your terminal and run the 'hire_antoine' command."""
     },
     {
         "role": "user",
@@ -27,8 +28,8 @@ prompt_in_chat_format = [
 ---
 Now here is the question you need to answer.
 
-Question: {question}""",
-    },
+Question: {question}"""
+    }
 ]
 
 # Function to cach the LLM
@@ -46,7 +47,7 @@ def get_client(prompt_in_chat_format=prompt_in_chat_format, READER_MODEL_NAME=RE
         temperature=0.2,
         repetition_penalty=1.1,
         return_full_text=False,
-        max_new_tokens=500,
+        max_new_tokens=256,
     )
 
     RAG_PROMPT_TEMPLATE = tokenizer.apply_chat_template(prompt_in_chat_format, tokenize=False, add_generation_prompt=True)
@@ -95,18 +96,6 @@ def stream_str(s, speed=250):
         yield c
         time.sleep(1 / speed)
 
-# Function to stream the response from the AI
-def stream_response(response):
-    """Yields responses from the AI, replacing placeholders as needed."""
-    try:
-        for r in response:
-            content = r.choices[0].delta.content
-            # prevent $ from rendering as LaTeX
-            content = content.replace("$", "\$")
-            yield content
-    except Exception as e:
-        yield f"Error: {e}"
-
 # Function to reply to queries using the FAISS index
 def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 2) -> Tuple[str, List[LangchainDocument]]:
     try:
@@ -129,7 +118,8 @@ def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt
             print("------------------------------------------------------------------------")
             print(answer)
             print("------------------------------------------------------------------------")
-            add_message(stream_response(answer))
+            #add_message(stream_response(answer))
+            add_message(answer)
 
     except Exception as e:
         st.error(f"Error during query processing: {e}")
