@@ -1,6 +1,5 @@
 import streamlit as st
 import time
-#from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from transformers import AutoTokenizer
@@ -12,34 +11,19 @@ from langchain.docstore.document import Document as LangchainDocument
 
 READER_MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
 
-#! FIX PROMPT SEE ANSWER BELOW:
-# Based on the provided context, there is no direct information to determine whether the individual mentioned in 
-# Document 1 is very good at coding. The statement "In 2024, Jedha was awarded the title of best coding BootCamp by Course Report" 
-# suggests that Jedha, as a whole, received this recognition, but it does not necessarily imply that all instructors or students at Jedha 
-# are exceptional coders. However, the individual's role as an assistant to students with coding exercises and case studies 
-# could indicate some proficiency in coding. Without further context, it is unclear if this person is specifically known for their 
-# coding abilities. If more information is needed to confirm their expertise in coding, it would be suggested to schedule a video 
-# call with Antoine Bertin (mentioned in the initial prompt) or explore the resources available through the 'antoine' package.
-
 prompt_in_chat_format = [
     {
         "role": "system",
-        "content": """Using the information contained in the context, give a comprehensive answer to the question. 
-        Respond only to the question asked, response should be short and relevant to the question. 
-        Do not respond anything that can't be answered from the context.""" 
+        "content": """Use the information contained in Antoine Bertin resumé to give a short answer to a question. 
+        Respond only to the question asked, response should be short and relevant to the question.
+        If Antoine Bertin resumé does not provide information about a question, respond only to book a video call with Antoine.
+        """ 
     },
     {
-        "role": "user",
-        "content": """Context:
-{context}
+        "role": "user", "content": 
+        """Antoine Bertin resumé: {context}
 ---
-If the following question cannot be answered from the context suggest the following:
-- Schedule a video call with Antoine Bertin for more detailed information. You can do this by visiting his Calendly link: 'https://calendly.com/antoinebertin/30'.
-- Learn more about Antoine's story, you can download the 'antoine' package. To do this, use the command 'pip install antoine' in your terminal and run the 'hire_antoine' command.
-   
-Now here is the question you need to answer.
-
-Question: {question}"""
+Question: {question} """
     }
 ]
 
@@ -58,7 +42,7 @@ def get_client(prompt_in_chat_format=prompt_in_chat_format, READER_MODEL_NAME=RE
         temperature=0.2,
         repetition_penalty=1.1,
         return_full_text=False,
-        max_new_tokens=100,
+        max_new_tokens=150,
     )
 
     RAG_PROMPT_TEMPLATE = tokenizer.apply_chat_template(prompt_in_chat_format, tokenize=False, add_generation_prompt=True)
@@ -117,18 +101,23 @@ def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt
             relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
 
             # Build the final prompt
-            context = "\nExtracted documents:\n"
+            context = "\nExtracted text from Antoine Bertin's resumé:\n"
             context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
 
             final_prompt = prompt.format(question=question, context=context)
 
         # Redact an answer
-        with st.spinner("processing your query..."):
+        with st.spinner("Processing your query... be cool, this runs on free resources! 😅"):
             print("=> Generating answer...")
             answer = llm(final_prompt)[0]["generated_text"]
+            #Create answer with extract
+            context = context.replace("Document 0:::", "\nDocument 0:::")
+            context = context.replace("Document 1:::", "\n\nDocument 1:::")
+            #answer += "\n\n---\n" + context
             print("------------------------------------------------------------------------")
             print(answer)
             print("------------------------------------------------------------------------")
+            print(context)
             #add_message(stream_response(answer))
             add_message(answer)
 
@@ -139,8 +128,43 @@ def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt
 # Main application logic
 def main():
     """Main function to run the application logic."""
+    st.warning("⚠️ This chatbot uses a small free open source LLM and run on a free server instance 😅, so please be patient...🙏")
+    st.info("🎉 Vector DB and LLM are cached after their first run | Oh and LLM is english only 🙏")
+    
     if st.sidebar.button("🔴 Reset conversation"):
         st.session_state.messages = []
+    # LinkedIn button-like link with space, transparent background, and emoji
+    st.sidebar.markdown("""
+        <a href="https://www.linkedin.com/in/antoinebertin35/" target="_blank" style="text-decoration: none;">
+            <button style="margin-bottom: 10px; color: #0A66C2; background-color: transparent; border: 2px solid #0A66C2; border-radius: 5px; padding: 10px; cursor: pointer;">
+                👤 My LinkedIn
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+
+    # Calendly button-like link with transparent background and emoji
+    st.sidebar.markdown("""
+        <a href="https://calendly.com/antoinebertin/30/" target="_blank" style="text-decoration: none;">
+            <button style="color: #4CAF50; background-color: transparent; border: 2px solid #4CAF50; border-radius: 5px; padding: 10px; cursor: pointer;">
+                📅 My Calendly
+            </button>
+        </a>
+        """, unsafe_allow_html=True)
+    # Define the list of tasks
+    tasks = [
+        "Scaling Up Server Instance",
+        "Add memory",
+        "Prompt injection",
+        "Implementing a Reranker for RAG",
+        "Fine-Tuning the LLM for Task Focus",
+        "Packaging the LLM for Low Latency: Quantize and deploy the model on edge to reduce latency"
+    ]
+
+    # Create a bulleted list in the sidebar
+    st.sidebar.write("## What's next?")
+    for task in tasks:
+        st.sidebar.markdown(f"- {task}")
+    
     try:
         # Check if vdb is already loaded
         if 'vdb' not in st.session_state:
