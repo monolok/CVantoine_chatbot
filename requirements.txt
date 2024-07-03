@@ -2,11 +2,12 @@ pypdf
 faiss-cpu
 streamlit
 numpy
-python-dotenv
 langchain
 langchain-community
-sentence-transformers
 langchain-huggingface
+huggingface_hub
+#python-dotenv
+#sentence-transformers
 #mistralai
 #bitsandbytes
 #accelerate

@@ -1,13 +1,18 @@
+import os
 import streamlit as st
 import time
 from langchain_huggingface import HuggingFaceEmbeddings
+from huggingface_hub import InferenceClient
 from langchain_community.vectorstores import FAISS
-from transformers import AutoTokenizer
+#from transformers import AutoTokenizer
 from typing import List, Tuple
-from transformers import Pipeline
-from transformers import pipeline
-from transformers import AutoModelForCausalLM
+#from transformers import Pipeline
+#from transformers import pipeline
+#from transformers import AutoModelForCausalLM
 from langchain.docstore.document import Document as LangchainDocument
+
+# from dotenv import load_dotenv
+# load_dotenv()
 
 READER_MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
 
@@ -27,25 +32,36 @@ Question: {question} """
     }
 ]
 
+def format_prompt(messages):
+    prompt = ""
+    for message in messages:
+        if message["role"] == "system":
+            prompt += f"System: {message['content']}\n"
+        elif message["role"] == "user":
+            prompt += f"User: {message['content']}\n"
+    return prompt
+
 # Function to cach the LLM
 @st.cache_resource
 def get_client(prompt_in_chat_format=prompt_in_chat_format, READER_MODEL_NAME=READER_MODEL_NAME):
     """Returns a cached instance of the Open Source LLM."""
-    model = AutoModelForCausalLM.from_pretrained(READER_MODEL_NAME)#, quantization_config=bnb_config)
-    tokenizer = AutoTokenizer.from_pretrained(READER_MODEL_NAME)
+    #model = AutoModelForCausalLM.from_pretrained(READER_MODEL_NAME)#, quantization_config=bnb_config)
+    #tokenizer = AutoTokenizer.from_pretrained(READER_MODEL_NAME)
 
-    READER_LLM = pipeline(
-        model=model,
-        tokenizer=tokenizer,
-        task="text-generation",
-        do_sample=True,
-        temperature=0.2,
-        repetition_penalty=1.1,
-        return_full_text=False,
-        max_new_tokens=150,
-    )
-
-    RAG_PROMPT_TEMPLATE = tokenizer.apply_chat_template(prompt_in_chat_format, tokenize=False, add_generation_prompt=True)
+    # READER_LLM = pipeline(
+    #     model=model,
+    #     tokenizer=tokenizer,
+    #     task="text-generation",
+    #     do_sample=True,
+    #     temperature=0.2,
+    #     repetition_penalty=1.1,
+    #     return_full_text=False,
+    #     max_new_tokens=150,
+    # )
+    hf_key = os.getenv('HF_KEY')
+    READER_LLM = InferenceClient(token=hf_key, model=READER_MODEL_NAME)
+    #RAG_PROMPT_TEMPLATE = tokenizer.apply_chat_template(prompt_in_chat_format, tokenize=False, add_generation_prompt=True)
+    RAG_PROMPT_TEMPLATE = format_prompt(prompt_in_chat_format)
 
     return READER_LLM, RAG_PROMPT_TEMPLATE
 
@@ -92,7 +108,7 @@ def stream_str(s, speed=250):
         time.sleep(1 / speed)
 
 # Function to reply to queries using the FAISS index
-def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 2) -> Tuple[str, List[LangchainDocument]]:
+def answer_with_rag(question: str, llm, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 2) -> Tuple[str, List[LangchainDocument]]:
     try:
         # Gather documents with retriever
         with st.spinner("reading Antoine's resumé..."):
@@ -109,7 +125,8 @@ def answer_with_rag(question: str, llm: Pipeline, knowledge_index: FAISS, prompt
         # Redact an answer
         with st.spinner("Processing your query... be cool, this runs on free resources! 😅"):
             print("=> Generating answer...")
-            answer = llm(final_prompt)[0]["generated_text"]
+            #answer = llm(final_prompt)[0]["generated_text"]
+            answer = llm.text_generation(prompt=final_prompt, temperature=0.2, do_sample=True, repetition_penalty=1.1, return_full_text=False, max_new_tokens=150)
             #Create answer with extract
             context = context.replace("Document 0:::", "\nDocument 0:::")
             context = context.replace("Document 1:::", "\n\nDocument 1:::")
