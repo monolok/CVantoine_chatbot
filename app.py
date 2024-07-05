@@ -108,7 +108,7 @@ def stream_str(s, speed=250):
         time.sleep(1 / speed)
 
 # Function to reply to queries using the FAISS index
-def answer_with_rag(question: str, llm, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 2) -> Tuple[str, List[LangchainDocument]]:
+def answer_with_rag(question: str, llm, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 4) -> Tuple[str, List[LangchainDocument]]:
     try:
         # Gather documents with retriever
         with st.spinner("reading Antoine's resumé..."):
