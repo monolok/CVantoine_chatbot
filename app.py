@@ -21,12 +21,13 @@ prompt_in_chat_format = [
         "role": "system",
         "content": """Use the information contained in Antoine Bertin resumé to give a short answer to a question. 
         Respond only to the question asked, response should be short and relevant to the question.
-        If Antoine Bertin resumé does not provide information about a question, respond only to book a video call with Antoine.
+        If Antoine Bertin resumé does not provide information about the question, respond only to book a video call with Antoine.
+        The answer must always include some reference to Antoine's work as a data scientist from his resumé.
         """ 
     },
     {
         "role": "user", "content": 
-        """Antoine Bertin resumé: {context}
+        """resumé extract for context: {context}
 ---
 Question: {question} """
     }
