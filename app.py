@@ -130,6 +130,8 @@ def answer_with_rag(question: str, llm, knowledge_index: FAISS, prompt: str, num
             #Create answer with extract
             context = context.replace("Document 0:::", "\nDocument 0:::")
             context = context.replace("Document 1:::", "\n\nDocument 1:::")
+            context = context.replace("Document 2:::", "\n\nDocument 2:::")
+            context = context.replace("Document 3:::", "\n\nDocument 3:::")
             #answer += "\n\n---\n" + context
             print("------------------------------------------------------------------------")
             print(answer)
