@@ -1,20 +1,15 @@
 import os
 import streamlit as st
-import time
-from langchain_huggingface import HuggingFaceEmbeddings
-from huggingface_hub import InferenceClient
-from langchain_community.vectorstores import FAISS
-#from transformers import AutoTokenizer
 from typing import List, Tuple
-#from transformers import Pipeline
-#from transformers import pipeline
-#from transformers import AutoModelForCausalLM
 from langchain.docstore.document import Document as LangchainDocument
+import cohere
+from llama_index.core import StorageContext, VectorStoreIndex, load_index_from_storage
+from llama_index.embeddings.cohere import CohereEmbedding
+from rag import *
 
 # from dotenv import load_dotenv
 # load_dotenv()
-
-READER_MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
+api_key=os.getenv('COHERE_KEY')
 
 prompt_in_chat_format = [
     {
@@ -33,112 +28,54 @@ Question: {question} """
     }
 ]
 
-def format_prompt(messages):
-    prompt = ""
-    for message in messages:
-        if message["role"] == "system":
-            prompt += f"System: {message['content']}\n"
-        elif message["role"] == "user":
-            prompt += f"User: {message['content']}\n"
-    return prompt
-
-# Function to cach the LLM
+# Function to cache the LLM
 @st.cache_resource
-def get_client(prompt_in_chat_format=prompt_in_chat_format, READER_MODEL_NAME=READER_MODEL_NAME):
+def get_client(prompt_in_chat_format=prompt_in_chat_format):
     """Returns a cached instance of the Open Source LLM."""
-    #model = AutoModelForCausalLM.from_pretrained(READER_MODEL_NAME)#, quantization_config=bnb_config)
-    #tokenizer = AutoTokenizer.from_pretrained(READER_MODEL_NAME)
-
-    # READER_LLM = pipeline(
-    #     model=model,
-    #     tokenizer=tokenizer,
-    #     task="text-generation",
-    #     do_sample=True,
-    #     temperature=0.2,
-    #     repetition_penalty=1.1,
-    #     return_full_text=False,
-    #     max_new_tokens=150,
-    # )
-    hf_key = os.getenv('HF_KEY')
-    READER_LLM = InferenceClient(token=hf_key, model=READER_MODEL_NAME)
-    #RAG_PROMPT_TEMPLATE = tokenizer.apply_chat_template(prompt_in_chat_format, tokenize=False, add_generation_prompt=True)
+    READER_LLM = cohere.Client(api_key=api_key)
     RAG_PROMPT_TEMPLATE = format_prompt(prompt_in_chat_format)
 
     return READER_LLM, RAG_PROMPT_TEMPLATE
 
 # Function to build and cache the vector db
 @st.cache_resource
-def load_and_cache_index(dir="open_source_model_vdb"):
+def load_and_cache_index(dir="index_cv"):
     """Loads and caches the faiss vdb index."""
-    modelPath = "sentence-transformers/all-MiniLM-l6-v2"
-    model_kwargs = {'device':'cpu'}
-    encode_kwargs = {'normalize_embeddings': False}
-    embeddings = HuggingFaceEmbeddings(
-        model_name=modelPath,     # Provide the pre-trained model's path
-        model_kwargs=model_kwargs, # Pass the model configuration options
-        encode_kwargs=encode_kwargs # Pass the encoding options
+    embed_model = CohereEmbedding(
+        cohere_api_key=api_key,
+        model_name="embed-english-v3.0",
     )
-    vdb = FAISS.load_local(dir, embeddings, allow_dangerous_deserialization=True) #  take the same model used for the embeddings
+    storage_context = StorageContext.from_defaults(persist_dir=dir)
+    vdb = load_index_from_storage(storage_context, embed_model=embed_model)
     return vdb
 
 # Initialize session state variables if not already present
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Function to add a message to the chat
-def add_message(msg, agent="ai", stream=True, store=True):
-    """Adds a message to the chat interface, optionally streaming the output."""
-    if stream and isinstance(msg, str):
-        msg = stream_str(msg)
-
-    with st.chat_message(agent):
-        if stream:
-            output = st.write_stream(msg)
-        else:
-            output = msg
-            st.write(msg)
-
-    if store:
-        st.session_state.messages.append(dict(agent=agent, content=output))
-
-# Function to stream a string with a delay
-def stream_str(s, speed=250):
-    """Yields characters from a string with a delay to simulate streaming."""
-    for c in s:
-        yield c
-        time.sleep(1 / speed)
-
 # Function to reply to queries using the FAISS index
-def answer_with_rag(question: str, llm, knowledge_index: FAISS, prompt: str, num_retrieved_docs: int = 4) -> Tuple[str, List[LangchainDocument]]:
+def answer_with_rag(question: str, llm, knowledge_index: VectorStoreIndex, prompt: str) -> Tuple[str, List[LangchainDocument]]:
     try:
         # Gather documents with retriever
         with st.spinner("reading Antoine's resumé..."):
             print("=> Retrieving documents...")
-            relevant_docs = knowledge_index.similarity_search(query=question, k=num_retrieved_docs)
-            relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
+            top_k = 5 # how many documents to fetch on first pass
+            top_n = 1 # how many documents to sub-select with rerank
+            
+            retriever = RetrieverWithRerank(knowledge_index.as_retriever(similarity_top_k=top_k), api_key=api_key)
+            documents = retriever.retrieve(question, top_n=top_n)
 
             # Build the final prompt
             context = "\nExtracted text from Antoine Bertin's resumé:\n"
-            context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
-
+            context += documents[0]['text']
             final_prompt = prompt.format(question=question, context=context)
 
         # Redact an answer
         with st.spinner("Processing your query... be cool, this runs on free resources! 😅"):
             print("=> Generating answer...")
-            #answer = llm(final_prompt)[0]["generated_text"]
-            answer = llm.text_generation(prompt=final_prompt, temperature=0.2, do_sample=True, repetition_penalty=1.1, return_full_text=False, max_new_tokens=150)
-            #Create answer with extract
-            context = context.replace("Document 0:::", "\nDocument 0:::")
-            context = context.replace("Document 1:::", "\n\nDocument 1:::")
-            context = context.replace("Document 2:::", "\n\nDocument 2:::")
-            context = context.replace("Document 3:::", "\n\nDocument 3:::")
-            #answer += "\n\n---\n" + context
-            print("------------------------------------------------------------------------")
-            print(answer)
-            print("------------------------------------------------------------------------")
-            print(context)
-            #add_message(stream_response(answer))
+            print(type(final_prompt))
+            resp = llm.chat(message=final_prompt, model="command-r", temperature=0.)
+            answer = resp.text
             add_message(answer)
 
     except Exception as e:
